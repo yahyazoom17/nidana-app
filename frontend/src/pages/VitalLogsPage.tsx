@@ -36,10 +36,10 @@ const colors = {
 
 /* ─── Nav Items ─── */
 const navItems = [
-  { label: "Health Monitor", icon: Flower2, href: "/sanctuary" },
+  { label: "Health Monitor", icon: Activity, href: "/health-monitor" },
   { label: "Ayush AI", icon: BrainCircuit, href: "/chatbot" },
-  { label: "Lifestyle Tracker", icon: History, href: "/history" },
-  { label: "Vital Logs", icon: Activity, href: "/vital-logs", active: true },
+  { label: "Lifestyle Tracker", icon: History, href: "/lifestyle" },
+  { label: "Vital Logs", icon: Flower2, href: "/vital-logs", active: true },
 ];
 
 /* ─── Mock Data ─── */

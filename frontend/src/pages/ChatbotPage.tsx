@@ -55,10 +55,10 @@ function extractResponseText(response: any): string {
 
 /* ─── Nav Items ─── */
 const navItems = [
-  { label: "Health Monitor", icon: Flower2, href: "/sanctuary" },
+  { label: "Health Monitor", icon: Activity, href: "/health-monitor" },
   { label: "Ayush AI", icon: BrainCircuit, href: "/chatbot", active: true },
-  { label: "Lifestyle Tracker", icon: History, href: "/history" },
-  { label: "Vital Logs", icon: Activity, href: "/vital-logs" },
+  { label: "Lifestyle Tracker", icon: History, href: "/lifestyle" },
+  { label: "Vital Logs", icon: Flower2, href: "/vital-logs" },
 ];
 
 /* ─── Seed Messages ─── */
@@ -91,7 +91,6 @@ const seedMessages: Message[] = [
 
 const chatHistorySessions = [
   { id: "h1", title: "Conversation History", date: "Today" },
-  { id: "h2", title: "Dietary Plan", date: "Yesterday" },
 ];
 
 export default function ChatbotPage() {
@@ -423,8 +422,9 @@ export default function ChatbotPage() {
                     }}
                   >
                     {chatHistorySessions.map((session) => (
-                      <div
+                      <a
                         key={session.id}
+                        href="/conversation-history"
                         style={{
                           fontSize: "0.8rem",
                           color: colors.secondary,
@@ -435,13 +435,15 @@ export default function ChatbotPage() {
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
+                          textDecoration: "none",
+                          display: "block",
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = colors.neutral)}
                         onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         title={session.title}
                       >
                         {session.title}
-                      </div>
+                      </a>
                     ))}
                   </div>
                 )}

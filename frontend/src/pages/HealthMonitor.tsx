@@ -37,8 +37,8 @@ const colors = {
 const navItems = [
   { label: "Health Monitor", icon: Activity, href: "/health-monitor", active: true },
   { label: "Ayush AI", icon: BrainCircuit, href: "/chatbot" },
-  { label: "Health History", icon: History, href: "/history" },
-  { label: "Women Health", icon: Flower2, href: "/women-health" },
+  { label: "Lifestyle Tracker", icon: History, href: "/lifestyle" },
+  { label: "Vital Logs", icon: Flower2, href: "/vital-logs" },
 ];
 
 /* ─── Mock Data ─── */
