@@ -58,7 +58,7 @@ const navItems = [
   { label: "Health Monitor", icon: Flower2, href: "/sanctuary" },
   { label: "Ayush AI", icon: BrainCircuit, href: "/chatbot", active: true },
   { label: "Lifestyle Tracker", icon: History, href: "/history" },
-  { label: "Vital Logs", icon: Activity, href: "/women-health" },
+  { label: "Vital Logs", icon: Activity, href: "/vital-logs" },
 ];
 
 /* ─── Seed Messages ─── */
