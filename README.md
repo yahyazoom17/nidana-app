@@ -1,1 +1,1 @@
-# nidana-app
+# epoch-hackathon
