@@ -6,11 +6,7 @@ import {
   Activity,
   Leaf,
   Pill,
-  Clock,
-  ChevronRight,
   TrendingUp,
-  FileText,
-  AlertCircle,
   Plus,
   ArrowUpRight,
   Droplets,
@@ -85,7 +81,7 @@ const healthMetrics = [
 ];
 
 export default function HealthMonitor() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [_activeTab, _setActiveTab] = useState("overview");
 
   return (
     <div

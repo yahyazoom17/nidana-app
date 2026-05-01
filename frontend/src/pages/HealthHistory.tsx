@@ -6,15 +6,9 @@ import {
     Activity,
     Leaf,
     Pill,
-    Clock,
     ChevronRight,
     TrendingUp,
     FileText,
-    AlertCircle,
-    Plus,
-    ArrowUpRight,
-    Droplets,
-    Timer,
     Sparkles,
     Volume2,
     VolumeX,
@@ -455,7 +449,7 @@ export default function HealthHistory() {
                                     zIndex: 0
                                 }} />
 
-                                {filteredHistory.map((item, index) => (
+                                {filteredHistory.map((item) => (
                                     <div key={item.id} style={{ display: "flex", gap: 24, paddingBottom: 40, position: "relative", zIndex: 1 }}>
                                         {/* Icon / Point */}
                                         <div style={{

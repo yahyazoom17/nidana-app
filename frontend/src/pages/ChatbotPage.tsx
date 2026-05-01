@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import {
   Flower2,
   BrainCircuit,
-  HeartPulse,
   History,
   Send,
   Leaf,
@@ -91,9 +90,8 @@ const seedMessages: Message[] = [
 ];
 
 const chatHistorySessions = [
-  { id: "h1", title: "Headache Discussion", date: "Today" },
+  { id: "h1", title: "Conversation History", date: "Today" },
   { id: "h2", title: "Dietary Plan", date: "Yesterday" },
-  { id: "h3", title: "Sleep Habits", date: "Last Week" },
 ];
 
 export default function ChatbotPage() {
