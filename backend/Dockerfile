@@ -20,6 +20,9 @@ COPY pyproject.toml uv.lock ./
 # Install dependencies into the system Python (no venv needed in a container)
 RUN uv sync --frozen --no-dev
 
+# Pin numpy<2 — crewai/langchain use numpy.floating which was removed in NumPy 2.0
+RUN uv pip install "numpy<2.0"
+
 # Copy application source
 COPY . .
 
