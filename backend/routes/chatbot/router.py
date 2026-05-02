@@ -2,6 +2,8 @@ from fastapi import APIRouter, UploadFile, File # type: ignore
 from services.chatbot.utils import chatbot_crew, analysis_crew
 from routes.chatbot.schemas import ChatbotInputSchema
 from services.chatbot.analysis import get_report_from_pdf
+from services.chatbot.report_extractor import extract_report_data
+from services.chatbot.report_persister import persist_report_data, save_report_conversation
 import os
 import img2pdf
 
@@ -33,9 +35,33 @@ async def upload_pdf(file: UploadFile = File(...)):
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
+    # 1. OCR the report
     report_data = get_report_from_pdf()
-    response = analysis_crew.kickoff(inputs={"report":report_data})
-    return {"status":"ok", "message":"agent responded", "response":response}
+
+    # 2. Run the analysis crew for AI response
+    response = analysis_crew.kickoff(inputs={"report": report_data})
+
+    # 3. Extract structured data from the report using LLM
+    extracted = {}
+    persist_counts = {}
+    try:
+        extracted = extract_report_data(report_data)
+        persist_counts = persist_report_data(extracted)
+        save_report_conversation(
+            file_name=file.filename or "report.pdf",
+            report_text=report_data,
+            ai_response=str(response),
+        )
+    except Exception as exc:
+        print(f"[upload-pdf] Data extraction/persistence error: {exc}")
+
+    return {
+        "status": "ok",
+        "message": "agent responded",
+        "response": response,
+        "extracted_data": extracted,
+        "persisted_counts": persist_counts,
+    }
 
 @chatbot_router.post("/upload-image")
 async def convert_to_pdf(file: UploadFile = File(...)):
@@ -50,6 +76,30 @@ async def convert_to_pdf(file: UploadFile = File(...)):
     with open(output_path, "wb") as f:
         f.write(pdf_bytes)
 
+    # 1. OCR the report
     report_data = get_report_from_pdf()
-    response = analysis_crew.kickoff(inputs={"report":report_data})
-    return {"status":"ok", "message":"agent responded", "response":response}
+
+    # 2. Run the analysis crew for AI response
+    response = analysis_crew.kickoff(inputs={"report": report_data})
+
+    # 3. Extract structured data from the report using LLM
+    extracted = {}
+    persist_counts = {}
+    try:
+        extracted = extract_report_data(report_data)
+        persist_counts = persist_report_data(extracted)
+        save_report_conversation(
+            file_name=file.filename or "report.image",
+            report_text=report_data,
+            ai_response=str(response),
+        )
+    except Exception as exc:
+        print(f"[upload-image] Data extraction/persistence error: {exc}")
+
+    return {
+        "status": "ok",
+        "message": "agent responded",
+        "response": response,
+        "extracted_data": extracted,
+        "persisted_counts": persist_counts,
+    }

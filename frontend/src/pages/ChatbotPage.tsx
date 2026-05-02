@@ -120,6 +120,30 @@ export default function ChatbotPage() {
           content: extractResponseText(data.response),
         };
         setMessages((prev) => [...prev, aiMsg]);
+
+        // Show extraction summary if data was persisted
+        const counts = data.persisted_counts;
+        if (counts && Object.keys(counts).length > 0) {
+          const parts: string[] = [];
+          if (counts.health_indicators) parts.push(`${counts.health_indicators} health indicator(s)`);
+          if (counts.vital_logs) parts.push(`${counts.vital_logs} vital sign record(s)`);
+          if (counts.prescriptions) parts.push(`${counts.prescriptions} medication(s)`);
+          if (counts.ai_trends) parts.push(`${counts.ai_trends} AI trend insight(s)`);
+          if (counts.sleep_logs) parts.push(`sleep data`);
+          if (counts.hydration_logs) parts.push(`hydration data`);
+          if (counts.exercise_logs) parts.push(`${counts.exercise_logs} exercise recommendation(s)`);
+          if (counts.diet_meals) parts.push(`${counts.diet_meals} diet plan(s)`);
+          if (counts.vital_insights) parts.push(`a vital insight summary`);
+
+          if (parts.length > 0) {
+            const summaryMsg: Message = {
+              id: (Date.now() + 2).toString(),
+              role: "ai",
+              content: `📋 **Report Data Extracted & Saved**\n\nI've extracted and saved the following to your dashboard:\n\n${parts.map(p => `• ${p}`).join("\n")}\n\n✅ Visit **Health Monitor**, **Vital Logs**, **Lifestyle Tracker**, or **Conversation History** to view your updated data.`,
+            };
+            setMessages((prev) => [...prev, summaryMsg]);
+          }
+        }
       } else {
         const errMsg: Message = {
           id: (Date.now() + 1).toString(),
