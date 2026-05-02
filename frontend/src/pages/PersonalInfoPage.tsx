@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Activity, ArrowRight, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { MOCK_PATIENT } from "@/lib/mockData";
 
 const colors = {
   primary: "#1B3A2E",
@@ -18,11 +19,11 @@ export default function PersonalInfoPage() {
   const [fileName, setFileName] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    age: "",
-    gender: "",
-    height: "",
-    weight: "",
-    medicalHistory: "",
+    age: MOCK_PATIENT.age,
+    gender: MOCK_PATIENT.gender,
+    height: MOCK_PATIENT.height,
+    weight: MOCK_PATIENT.weight,
+    medicalHistory: MOCK_PATIENT.medicalHistory,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -95,7 +96,7 @@ export default function PersonalInfoPage() {
               Personalize Your Care
             </h1>
             <p style={{ margin: 0, fontSize: "0.95rem", color: colors.secondary }}>
-              Tell us a little about yourself to get tailored wellness guidance.
+              {MOCK_PATIENT.fullName}, tell us a little about yourself to get tailored wellness guidance.
             </p>
           </div>
         </div>

@@ -17,6 +17,7 @@ import {
   type SleepLog,
   type HydrationLog,
 } from "@/lib/api";
+import { mockLifestyleDashboard, MOCK_PATIENT } from "@/lib/mockData";
 
 const colors = {
   primary: "#1B3A2E",
@@ -71,8 +72,10 @@ export default function LifestyleTrackerPage() {
         setError(null);
       })
       .catch((err) => {
-        console.error("Failed to load lifestyle dashboard:", err);
-        setError("Unable to load lifestyle data. Make sure the backend is running and data is seeded.");
+        console.error("Failed to load lifestyle dashboard, using mock data:", err);
+        setDashboard(mockLifestyleDashboard);
+        setWaterGlasses(mockLifestyleDashboard.hydration?.glasses ?? 0);
+        setError(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -146,7 +149,9 @@ export default function LifestyleTrackerPage() {
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: colors.tertiary }} />
                 <h2 style={{ fontSize: "2rem", fontWeight: 500, margin: 0, lineHeight: 1.25 }}>Lifestyle Tracker</h2>
               </div>
-              <p style={{ fontSize: "0.9rem", color: colors.secondary, marginLeft: 20 }}>Track hydration, nutrition, exercise & sleep for holistic wellness.</p>
+              <p style={{ fontSize: "0.9rem", color: colors.secondary, marginLeft: 20 }}>
+                Patient: <strong style={{ color: colors.primary }}>{MOCK_PATIENT.fullName}</strong> — Track hydration, nutrition, exercise & sleep for holistic wellness.
+              </p>
             </div>
             <div style={{ display: "flex", gap: 12 }}>
               <button style={{ background: `${colors.ai}15`, color: colors.ai, padding: "10px 20px", borderRadius: 12, border: `1px solid ${colors.ai}30`, display: "flex", alignItems: "center", gap: 8, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>

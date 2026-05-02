@@ -28,6 +28,7 @@ import {
   type TrendPoint,
   type VitalLog,
 } from "@/lib/api";
+import { mockVitalLogsDashboard, MOCK_PATIENT } from "@/lib/mockData";
 
 /* ─── Design Tokens ─── */
 const colors = {
@@ -78,8 +79,12 @@ export default function VitalLogsPage() {
         }
       })
       .catch((err) => {
-        console.error("Failed to load vital logs dashboard:", err);
-        setError("Unable to load vital logs. Make sure the backend is running and data is seeded.");
+        console.error("Failed to load vital logs dashboard, using mock data:", err);
+        setDashboard(mockVitalLogsDashboard);
+        if (mockVitalLogsDashboard.summary_cards.length > 0) {
+          setSelectedMetric(mockVitalLogsDashboard.summary_cards[0].metric);
+        }
+        setError(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -249,7 +254,7 @@ export default function VitalLogsPage() {
                 </h2>
               </div>
               <p style={{ fontSize: "0.9rem", color: colors.secondary, lineHeight: 1.65, marginLeft: 20 }}>
-                Track and monitor your daily vital signs with AI-powered insights.
+                Patient: <strong style={{ color: colors.primary }}>{MOCK_PATIENT.fullName}</strong> — Track and monitor your daily vital signs with AI-powered insights.
               </p>
             </div>
             <div style={{ display: "flex", gap: 12 }}>

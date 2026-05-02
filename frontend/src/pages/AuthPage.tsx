@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Leaf, ArrowRight, User, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { MOCK_PATIENT } from "@/lib/mockData";
 
 const colors = {
   primary: "#1B3A2E",
@@ -16,8 +17,8 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [isSignIn, setIsSignIn] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
+    fullName: MOCK_PATIENT.fullName,
+    email: MOCK_PATIENT.email,
     password: "",
   });
 
@@ -91,7 +92,7 @@ export default function AuthPage() {
             </h1>
             <p style={{ margin: 0, fontSize: "0.95rem", color: colors.secondary }}>
               {isSignIn
-                ? "Sign in to continue your wellness journey."
+                ? `Welcome back, ${MOCK_PATIENT.fullName}! Sign in to continue your wellness journey.`
                 : "Your journey to mindful wellness begins here."}
             </p>
           </div>

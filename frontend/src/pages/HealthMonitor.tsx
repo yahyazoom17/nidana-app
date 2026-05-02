@@ -28,6 +28,7 @@ import {
   type AITrend,
   type Consultation,
 } from "@/lib/api";
+import { mockHealthDashboard, MOCK_PATIENT } from "@/lib/mockData";
 
 /* ─── Design Tokens ─── */
 const colors = {
@@ -77,8 +78,9 @@ export default function HealthMonitor() {
         setError(null);
       })
       .catch((err) => {
-        console.error("Failed to load health dashboard:", err);
-        setError("Unable to load health data. Make sure the backend is running and data is seeded.");
+        console.error("Failed to load health dashboard, using mock data:", err);
+        setDashboard(mockHealthDashboard);
+        setError(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -282,7 +284,7 @@ export default function HealthMonitor() {
                   marginLeft: 20,
                 }}
               >
-                AI-managed health tracking and personalized prescription optimization.
+                Patient: <strong style={{ color: colors.primary }}>{MOCK_PATIENT.fullName}</strong> — AI-managed health tracking and personalized prescription optimization.
               </p>
             </div>
             <div style={{ display: "flex", gap: 12 }}>

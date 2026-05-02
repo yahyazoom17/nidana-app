@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Leaf, ArrowRight, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { MOCK_PATIENT } from "@/lib/mockData";
 
 const colors = {
   primary: "#1B3A2E",
@@ -15,7 +16,7 @@ const colors = {
 export default function SignInPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: "",
+    email: MOCK_PATIENT.email,
     password: "",
   });
 
@@ -83,7 +84,7 @@ export default function SignInPage() {
               Welcome Back
             </h1>
             <p style={{ margin: 0, fontSize: "0.95rem", color: colors.secondary }}>
-              Sign in to continue your wellness journey.
+              Welcome back, {MOCK_PATIENT.fullName}! Sign in to continue your wellness journey.
             </p>
           </div>
         </div>

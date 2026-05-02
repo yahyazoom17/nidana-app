@@ -15,6 +15,7 @@ import {
   type ConversationMessage,
   type ConversationDetail,
 } from "@/lib/api";
+import { mockConversationList, getMockConversationDetail, MOCK_PATIENT } from "@/lib/mockData";
 
 const colors = {
   primary: "#1B3A2E",
@@ -63,8 +64,20 @@ export default function ConversationhistoryPage() {
       setConversations(data.conversations ?? []);
       setError(null);
     } catch (err) {
-      console.error("Failed to load conversations:", err);
-      setError("Unable to load conversations. Make sure the backend is running and data is seeded.");
+      console.error("Failed to load conversations, using mock data:", err);
+      // Fallback to mock data
+      let mockConvos = mockConversationList.conversations;
+      if (search) {
+        const q = search.toLowerCase();
+        mockConvos = mockConvos.filter(
+          (c) =>
+            c.title.toLowerCase().includes(q) ||
+            (c.summary?.toLowerCase().includes(q) ?? false) ||
+            c.tags.some((t) => t.toLowerCase().includes(q))
+        );
+      }
+      setConversations(mockConvos);
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -90,11 +103,16 @@ export default function ConversationhistoryPage() {
       const detail = await fetchConversationDetail(MOCK_PATIENT_ID, convoId);
       setActiveDetail(detail);
     } catch (err) {
-      console.error("Failed to load conversation detail:", err);
-      // Fallback: show preview info without messages
-      const preview = conversations.find(c => c.id === convoId);
-      if (preview) {
-        setActiveDetail({ ...preview, messages: [] });
+      console.error("Failed to load conversation detail, using mock data:", err);
+      // Fallback: use mock conversation detail
+      const mockDetail = getMockConversationDetail(convoId);
+      if (mockDetail) {
+        setActiveDetail(mockDetail);
+      } else {
+        const preview = conversations.find(c => c.id === convoId);
+        if (preview) {
+          setActiveDetail({ ...preview, messages: [] });
+        }
       }
     } finally {
       setDetailLoading(false);
@@ -147,7 +165,9 @@ export default function ConversationhistoryPage() {
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: colors.ai }} />
                 <h2 style={{ fontSize: "2rem", fontWeight: 500, margin: 0, lineHeight: 1.25 }}>Conversation History</h2>
               </div>
-              <p style={{ fontSize: "0.9rem", color: colors.secondary, marginLeft: 20 }}>Review past consultations with Ayush AI.</p>
+              <p style={{ fontSize: "0.9rem", color: colors.secondary, marginLeft: 20 }}>
+                Patient: <strong style={{ color: colors.primary }}>{MOCK_PATIENT.fullName}</strong> — Review past consultations with Ayush AI.
+              </p>
             </div>
             <a href="/chatbot" style={{ background: colors.primary, color: colors.onPrimary, padding: "10px 20px", borderRadius: 12, border: "none", display: "flex", alignItems: "center", gap: 8, fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", textDecoration: "none", boxShadow: "0 4px 12px rgba(27, 58, 46, 0.15)" }}>
               <MessageSquare size={18} /> New Chat
@@ -294,7 +314,7 @@ export default function ConversationhistoryPage() {
                       </div>
                       {msg.role === "user" && (
                         <div style={{ width: 34, height: 34, borderRadius: 10, background: `${colors.tertiary}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2, fontSize: "0.75rem", fontWeight: 600, color: colors.tertiary }}>
-                          Y
+                          K
                         </div>
                       )}
                     </div>

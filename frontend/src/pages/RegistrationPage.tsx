@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Leaf, ArrowRight, User, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { MOCK_PATIENT } from "@/lib/mockData";
 
 const colors = {
   primary: "#1B3A2E",
@@ -15,8 +16,8 @@ const colors = {
 export default function RegistrationPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
+    fullName: MOCK_PATIENT.fullName,
+    email: MOCK_PATIENT.email,
     password: "",
   });
 

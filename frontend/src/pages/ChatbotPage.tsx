@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { MOCK_PATIENT } from "@/lib/mockData";
 
 /* ─── Design Tokens from DESIGN.md ─── */
 const colors = {
@@ -63,30 +64,6 @@ const navItems = [
 
 /* ─── Seed Messages ─── */
 const seedMessages: Message[] = [
-  {
-    id: "1",
-    role: "ai",
-    content:
-      "Good morning. I am your Clinical Wellness Guide. How are you feeling today? I am here to discuss your current symptoms, review your recent vitals, or simply provide a calm space for health reflections.",
-  },
-  {
-    id: "2",
-    role: "user",
-    content:
-      "I've been experiencing mild headaches in the late afternoon for the past two days. Could it be related to my new medication schedule?",
-  },
-  {
-    id: "3",
-    role: "ai",
-    content:
-      "Thank you for sharing that observation. Mild afternoon headaches can sometimes occur as your body adjusts to a new medication schedule.",
-  },
-  {
-    id: "4",
-    role: "ai",
-    content:
-      "Let's review your recent logs. I note your hydration levels were slightly below target yesterday. Before we consider the medication as the primary cause, I recommend drinking a glass of water and resting for 15 minutes in a quiet environment.",
-  },
 ];
 
 const chatHistorySessions = [
@@ -474,10 +451,10 @@ export default function ChatbotPage() {
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <Avatar style={{ width: 32, height: 32 }}>
-              <AvatarFallback style={{ background: `${colors.tertiary}20`, color: colors.tertiary, fontSize: "0.85rem", fontWeight: 600 }}>JD</AvatarFallback>
+              <AvatarFallback style={{ background: `${colors.tertiary}20`, color: colors.tertiary, fontSize: "0.85rem", fontWeight: 600 }}>{MOCK_PATIENT.fullName[0]}</AvatarFallback>
             </Avatar>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontSize: "0.9rem", fontWeight: 500, lineHeight: 1.2 }}>Jane Doe</span>
+              <span style={{ fontSize: "0.9rem", fontWeight: 500, lineHeight: 1.2 }}>{MOCK_PATIENT.fullName}</span>
               <span style={{ fontSize: "0.75rem", color: colors.secondary }}>View Profile</span>
             </div>
           </a>
@@ -647,7 +624,7 @@ export default function ChatbotPage() {
                         fontWeight: 600,
                       }}
                     >
-                      Y
+                      {MOCK_PATIENT.fullName[0]}
                     </AvatarFallback>
                   </Avatar>
                 )}
