@@ -1,13 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Leaf, BrainCircuit, Activity,
   Droplets, Apple, Moon, Footprints, Heart, Flame,
   Plus, Minus, UtensilsCrossed, Clock, Sun, Sparkles,
   TrendingUp, ChevronRight, Dumbbell, Wind, Coffee,
-  GlassWater,
+  GlassWater, Loader2, AlertTriangle,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  fetchLifestyleDashboard,
+  updateHydration,
+  type LifestyleDashboard,
+  type DietMeal,
+  type ExerciseLog as ExerciseLogType,
+  type SleepLog,
+  type HydrationLog,
+} from "@/lib/api";
 
 const colors = {
   primary: "#1B3A2E",
@@ -33,28 +42,67 @@ const navItems = [
   { label: "Vital Logs", icon: Footprints, href: "/vital-logs" },
 ];
 
-const mealPlan = [
-  { time: "7:30 AM", label: "Breakfast", icon: Coffee, items: ["Oatmeal with berries", "Green tea", "Almonds (10)"], cal: 420, done: true },
-  { time: "1:00 PM", label: "Lunch", icon: UtensilsCrossed, items: ["Grilled chicken salad", "Brown rice", "Lentil soup"], cal: 650, done: true },
-  { time: "4:30 PM", label: "Snack", icon: Apple, items: ["Greek yogurt", "Mixed nuts", "Apple slices"], cal: 220, done: false },
-  { time: "8:00 PM", label: "Dinner", icon: UtensilsCrossed, items: ["Baked salmon", "Steamed veggies", "Quinoa"], cal: 580, done: false },
-];
+/* ─── Meal icon map ─── */
+const mealIconMap: Record<string, typeof Coffee> = {
+  Breakfast: Coffee,
+  Lunch: UtensilsCrossed,
+  Snack: Apple,
+  Dinner: UtensilsCrossed,
+};
 
-const exerciseLog = [
-  { name: "Morning Walk", duration: "30 min", cal: 150, icon: Footprints, done: true },
-  { name: "Yoga Session", duration: "45 min", cal: 200, icon: Wind, done: true },
-  { name: "Strength Training", duration: "40 min", cal: 300, icon: Dumbbell, done: false },
-];
-
-const sleepData = { hours: 7.5, quality: 85, deep: 2.1, rem: 1.8, light: 3.6, bedtime: "10:30 PM", wakeup: "6:00 AM" };
+/* ─── Exercise icon map ─── */
+const exerciseIconMap: Record<string, typeof Footprints> = {
+  "Morning Walk": Footprints,
+  "Yoga Session": Wind,
+  "Strength Training": Dumbbell,
+};
 
 export default function LifestyleTrackerPage() {
-  const [waterGlasses, setWaterGlasses] = useState(5);
-  const waterGoal = 8;
+  const [dashboard, setDashboard] = useState<LifestyleDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [waterGlasses, setWaterGlasses] = useState(0);
+
+  useEffect(() => {
+    fetchLifestyleDashboard()
+      .then((data) => {
+        setDashboard(data);
+        setWaterGlasses(data.hydration?.glasses ?? 0);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Failed to load lifestyle dashboard:", err);
+        setError("Unable to load lifestyle data. Make sure the backend is running and data is seeded.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const hydration: HydrationLog | null = dashboard?.hydration ?? null;
+  const sleepData: SleepLog | null = dashboard?.sleep ?? null;
+  const dietMeals: DietMeal[] = dashboard?.diet_meals ?? [];
+  const exercises: ExerciseLogType[] = dashboard?.exercises ?? [];
+  const totalCalEaten = dashboard?.diet_calorie_total ?? 0;
+  const totalCalGoal = dashboard?.diet_calorie_goal ?? 1800;
+  const totalCalBurned = dashboard?.exercise_calorie_total ?? 0;
+
+  const waterGoal = hydration?.goal_glasses ?? 8;
   const waterPercent = Math.min((waterGlasses / waterGoal) * 100, 100);
-  const totalCalEaten = mealPlan.filter(m => m.done).reduce((s, m) => s + m.cal, 0);
-  const totalCalGoal = 1870;
-  const totalCalBurned = exerciseLog.filter(e => e.done).reduce((s, e) => s + e.cal, 0);
+  const sleepQuality = sleepData?.quality_pct ?? 0;
+  const sleepHours = sleepData?.total_hours ?? 0;
+  const deepHours = sleepData ? (sleepData.deep_pct ?? 0) / 100 * sleepHours : 0;
+  const remHours = sleepData ? (sleepData.rem_pct ?? 0) / 100 * sleepHours : 0;
+  const lightHours = sleepData ? (sleepData.light_pct ?? 0) / 100 * sleepHours : 0;
+
+  const handleWaterChange = (delta: number) => {
+    const newVal = Math.max(0, Math.min(waterGoal + 4, waterGlasses + delta));
+    setWaterGlasses(newVal);
+    // Persist to backend
+    if (hydration?.id) {
+      updateHydration(hydration.id, newVal, waterGoal).catch((err) =>
+        console.error("Failed to update hydration:", err)
+      );
+    }
+  };
 
   return (
     <div id="lifestyle-tracker-page" style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'DM Sans', sans-serif", background: colors.neutral, color: colors.primary }}>
@@ -111,13 +159,30 @@ export default function LifestyleTrackerPage() {
         <ScrollArea className="flex-1" style={{ background: colors.neutral }}>
           <div style={{ padding: "32px 40px", display: "flex", flexDirection: "column", gap: 28 }}>
 
+            {/* Loading State */}
+            {loading && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0", gap: 12 }}>
+                <Loader2 size={24} color={colors.ai} style={{ animation: "spin 1s linear infinite" }} />
+                <span style={{ fontSize: "1rem", color: colors.secondary }}>Loading lifestyle data...</span>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px", background: `${colors.alert}10`, borderRadius: 16, border: `1px solid ${colors.alert}30` }}>
+                <AlertTriangle size={20} color={colors.alert} />
+                <span style={{ fontSize: "0.9rem", color: colors.primary }}>{error}</span>
+              </div>
+            )}
+
+            {!loading && !error && dashboard && (<>
             {/* Summary Cards Row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
               {[
                 { label: "Hydration", value: `${waterGlasses}/${waterGoal}`, unit: "glasses", icon: GlassWater, color: colors.hydration, pct: waterPercent },
                 { label: "Calories In", value: `${totalCalEaten}`, unit: `/ ${totalCalGoal} kcal`, icon: Flame, color: colors.nutrition, pct: (totalCalEaten / totalCalGoal) * 100 },
                 { label: "Calories Burned", value: `${totalCalBurned}`, unit: "kcal", icon: Dumbbell, color: colors.exercise, pct: (totalCalBurned / 650) * 100 },
-                { label: "Sleep Score", value: `${sleepData.quality}`, unit: "/ 100", icon: Moon, color: colors.sleep, pct: sleepData.quality },
+                { label: "Sleep Score", value: `${sleepQuality}`, unit: "/ 100", icon: Moon, color: colors.sleep, pct: sleepQuality },
               ].map((c, i) => (
                 <div key={i} style={{ background: colors.surface, borderRadius: 20, padding: "20px", border: `1px solid ${colors.secondary}12`, position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", top: 0, left: 0, width: `${c.pct}%`, height: 3, background: c.color, borderRadius: "0 2px 2px 0", transition: "width 0.5s ease" }} />
@@ -172,7 +237,7 @@ export default function LifestyleTrackerPage() {
 
                 {/* Controls */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20 }}>
-                  <button onClick={() => setWaterGlasses(Math.max(0, waterGlasses - 1))} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${colors.secondary}25`, background: colors.neutral, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <button onClick={() => handleWaterChange(-1)} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${colors.secondary}25`, background: colors.neutral, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <Minus size={18} color={colors.secondary} />
                   </button>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -180,18 +245,20 @@ export default function LifestyleTrackerPage() {
                       <div key={i} style={{ width: 12, height: 28, borderRadius: 4, background: i < waterGlasses ? colors.hydration : `${colors.hydration}15`, transition: "background 0.3s ease" }} />
                     ))}
                   </div>
-                  <button onClick={() => setWaterGlasses(Math.min(waterGoal + 4, waterGlasses + 1))} style={{ width: 44, height: 44, borderRadius: 12, border: "none", background: colors.hydration, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: `0 4px 12px ${colors.hydration}30` }}>
+                  <button onClick={() => handleWaterChange(1)} style={{ width: 44, height: 44, borderRadius: 12, border: "none", background: colors.hydration, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: `0 4px 12px ${colors.hydration}30` }}>
                     <Plus size={18} color="#fff" />
                   </button>
                 </div>
 
                 {/* Tip */}
+                {hydration?.ai_tip && (
                 <div style={{ marginTop: 20, background: `${colors.ai}08`, borderRadius: 12, padding: "12px 16px", border: `1px solid ${colors.ai}12`, display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <Sparkles size={14} color={colors.ai} style={{ marginTop: 2, flexShrink: 0 }} />
                   <p style={{ fontSize: "0.8rem", color: colors.primary, margin: 0, lineHeight: 1.5 }}>
-                    <strong style={{ color: colors.ai }}>AI Tip:</strong> You tend to drink less water after 4 PM. Set a reminder to stay hydrated through the evening.
+                    <strong style={{ color: colors.ai }}>AI Tip:</strong> {hydration.ai_tip}
                   </p>
                 </div>
+                )}
               </div>
 
               {/* Sleep Tracker */}
@@ -211,12 +278,12 @@ export default function LifestyleTrackerPage() {
 
                 <div style={{ display: "flex", justifyContent: "center", gap: 32, marginBottom: 24 }}>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.sleep }}>{sleepData.hours}</div>
+                    <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.sleep }}>{sleepHours}</div>
                     <div style={{ fontSize: "0.75rem", color: colors.secondary }}>Total Hours</div>
                   </div>
                   <div style={{ width: 1, background: `${colors.secondary}20` }} />
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.sleep }}>{sleepData.quality}%</div>
+                    <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.sleep }}>{sleepQuality}%</div>
                     <div style={{ fontSize: "0.75rem", color: colors.secondary }}>Quality Score</div>
                   </div>
                 </div>
@@ -224,14 +291,14 @@ export default function LifestyleTrackerPage() {
                 {/* Sleep phases bar */}
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", height: 24 }}>
-                    <div style={{ width: `${(sleepData.deep / sleepData.hours) * 100}%`, background: "#4338CA", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "0.65rem", color: "#fff", fontWeight: 600 }}>{sleepData.deep}h</span>
+                    <div style={{ width: `${sleepHours > 0 ? (deepHours / sleepHours) * 100 : 0}%`, background: "#4338CA", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: "0.65rem", color: "#fff", fontWeight: 600 }}>{deepHours.toFixed(1)}h</span>
                     </div>
-                    <div style={{ width: `${(sleepData.rem / sleepData.hours) * 100}%`, background: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "0.65rem", color: "#fff", fontWeight: 600 }}>{sleepData.rem}h</span>
+                    <div style={{ width: `${sleepHours > 0 ? (remHours / sleepHours) * 100 : 0}%`, background: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: "0.65rem", color: "#fff", fontWeight: 600 }}>{remHours.toFixed(1)}h</span>
                     </div>
-                    <div style={{ width: `${(sleepData.light / sleepData.hours) * 100}%`, background: "#A78BFA", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "0.65rem", color: "#fff", fontWeight: 600 }}>{sleepData.light}h</span>
+                    <div style={{ width: `${sleepHours > 0 ? (lightHours / sleepHours) * 100 : 0}%`, background: "#A78BFA", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: "0.65rem", color: "#fff", fontWeight: 600 }}>{lightHours.toFixed(1)}h</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 16, marginTop: 10, justifyContent: "center" }}>
@@ -245,7 +312,7 @@ export default function LifestyleTrackerPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 12 }}>
-                  {[{ icon: Sun, label: "Bedtime", val: sleepData.bedtime }, { icon: Clock, label: "Wake Up", val: sleepData.wakeup }].map((s, i) => (
+                  {[{ icon: Sun, label: "Bedtime", val: sleepData?.bedtime ?? "--" }, { icon: Clock, label: "Wake Up", val: sleepData?.wake_time ?? "--" }].map((s, i) => (
                     <div key={i} style={{ flex: 1, background: colors.neutral, borderRadius: 14, padding: "14px", display: "flex", alignItems: "center", gap: 10 }}>
                       <s.icon size={16} color={colors.sleep} />
                       <div>
@@ -277,11 +344,12 @@ export default function LifestyleTrackerPage() {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-                {mealPlan.map((meal, i) => {
-                  const MealIcon = meal.icon;
+                {dietMeals.map((meal, i) => {
+                  const MealIcon = mealIconMap[meal.meal_type] ?? UtensilsCrossed;
+                  const items = meal.items ?? [];
                   return (
-                    <div key={i} style={{ background: meal.done ? `${colors.tertiary}06` : colors.neutral, borderRadius: 18, padding: "20px", border: `1px solid ${meal.done ? colors.tertiary + "20" : colors.secondary + "12"}`, position: "relative", transition: "all 0.2s ease" }}>
-                      {meal.done && <div style={{ position: "absolute", top: 12, right: 12, width: 20, height: 20, borderRadius: "50%", background: colors.tertiary, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div key={meal.id ?? i} style={{ background: meal.is_completed ? `${colors.tertiary}06` : colors.neutral, borderRadius: 18, padding: "20px", border: `1px solid ${meal.is_completed ? colors.tertiary + "20" : colors.secondary + "12"}`, position: "relative", transition: "all 0.2s ease" }}>
+                      {meal.is_completed && <div style={{ position: "absolute", top: 12, right: 12, width: 20, height: 20, borderRadius: "50%", background: colors.tertiary, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <span style={{ color: "#fff", fontSize: "0.7rem", fontWeight: 700 }}>✓</span>
                       </div>}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -289,19 +357,19 @@ export default function LifestyleTrackerPage() {
                           <MealIcon size={18} color={colors.nutrition} />
                         </div>
                         <div>
-                          <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>{meal.label}</div>
-                          <div style={{ fontSize: "0.7rem", color: colors.secondary }}>{meal.time}</div>
+                          <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>{meal.meal_type}</div>
+                          <div style={{ fontSize: "0.7rem", color: colors.secondary }}>{meal.scheduled_time ?? ""}</div>
                         </div>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-                        {meal.items.map((item, j) => (
+                        {items.map((item, j) => (
                           <div key={j} style={{ fontSize: "0.8rem", color: colors.primary, display: "flex", alignItems: "center", gap: 6 }}>
                             <div style={{ width: 4, height: 4, borderRadius: "50%", background: colors.tertiary, flexShrink: 0 }} />
-                            {item}
+                            {item.name}
                           </div>
                         ))}
                       </div>
-                      <div style={{ fontSize: "0.78rem", fontWeight: 600, color: colors.nutrition }}>{meal.cal} kcal</div>
+                      <div style={{ fontSize: "0.78rem", fontWeight: 600, color: colors.nutrition }}>{meal.total_calories} kcal</div>
                     </div>
                   );
                 })}
@@ -326,19 +394,19 @@ export default function LifestyleTrackerPage() {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-                {exerciseLog.map((ex, i) => {
-                  const ExIcon = ex.icon;
+                {exercises.map((ex, i) => {
+                  const ExIcon = exerciseIconMap[ex.exercise_name] ?? Dumbbell;
                   return (
-                    <div key={i} style={{ background: ex.done ? `${colors.tertiary}06` : colors.neutral, borderRadius: 18, padding: "20px", border: `1px solid ${ex.done ? colors.tertiary + "20" : colors.secondary + "12"}`, display: "flex", alignItems: "center", gap: 16 }}>
+                    <div key={ex.id ?? i} style={{ background: ex.is_completed ? `${colors.tertiary}06` : colors.neutral, borderRadius: 18, padding: "20px", border: `1px solid ${ex.is_completed ? colors.tertiary + "20" : colors.secondary + "12"}`, display: "flex", alignItems: "center", gap: 16 }}>
                       <div style={{ width: 52, height: 52, borderRadius: 16, background: `${colors.exercise}10`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <ExIcon size={24} color={colors.exercise} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "0.95rem", fontWeight: 600 }}>{ex.name}</div>
-                        <div style={{ fontSize: "0.8rem", color: colors.secondary, marginTop: 2 }}>{ex.duration} • {ex.cal} kcal</div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 600 }}>{ex.exercise_name}</div>
+                        <div style={{ fontSize: "0.8rem", color: colors.secondary, marginTop: 2 }}>{ex.duration_min} min • {ex.calories_burned} kcal</div>
                       </div>
-                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: ex.done ? colors.tertiary : `${colors.secondary}20`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {ex.done ? <span style={{ color: "#fff", fontSize: "0.7rem" }}>✓</span> : <ChevronRight size={14} color={colors.secondary} />}
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: ex.is_completed ? colors.tertiary : `${colors.secondary}20`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {ex.is_completed ? <span style={{ color: "#fff", fontSize: "0.7rem" }}>✓</span> : <ChevronRight size={14} color={colors.secondary} />}
                       </div>
                     </div>
                   );
@@ -346,6 +414,7 @@ export default function LifestyleTrackerPage() {
               </div>
             </div>
 
+            </>)}
           </div>
         </ScrollArea>
       </main>

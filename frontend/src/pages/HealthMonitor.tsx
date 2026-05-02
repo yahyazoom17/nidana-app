@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Flower2,
   BrainCircuit,
@@ -14,10 +14,20 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  fetchHealthDashboard,
+  type HealthDashboard,
+  type Prescription,
+  type HealthIndicator,
+  type AITrend,
+  type Consultation,
+} from "@/lib/api";
 
 /* ─── Design Tokens ─── */
 const colors = {
@@ -41,47 +51,43 @@ const navItems = [
   { label: "Vital Logs", icon: Flower2, href: "/vital-logs" },
 ];
 
-/* ─── Mock Data ─── */
-const medications = [
-  { 
-    id: 1, 
-    name: "Metformin", 
-    dosage: "500mg", 
-    schedule: "Twice daily", 
-    nextDose: "08:00 PM", 
-    status: "Upcoming",
-    aiInsight: "Optimized for post-meal absorption.",
-    riskLevel: "Low"
-  },
-  { 
-    id: 2, 
-    name: "Atorvastatin", 
-    dosage: "20mg", 
-    schedule: "Once daily", 
-    nextDose: "Taken", 
-    status: "Completed",
-    aiInsight: "Evening dose recommended for efficacy.",
-    riskLevel: "Low"
-  },
-  { 
-    id: 3, 
-    name: "Vitamin D3", 
-    dosage: "2000 IU", 
-    schedule: "Daily", 
-    nextDose: "09:00 AM", 
-    status: "Scheduled",
-    aiInsight: "Paired with morning light for synergy.",
-    riskLevel: "None"
-  },
-];
+/* ─── Indicator icon/color map ─── */
+const indicatorMeta: Record<string, { icon: typeof Droplets; color: string }> = {
+  "Blood Sugar": { icon: Droplets, color: colors.info },
+  "Sleep Quality": { icon: Timer, color: colors.tertiary },
+};
 
-const healthMetrics = [
-  { id: 1, label: "Blood Sugar", value: "98", unit: "mg/dL", trend: "improving", icon: Droplets, color: colors.info },
-  { id: 2, label: "Sleep Quality", value: "88", unit: "%", trend: "good", icon: Timer, color: colors.tertiary },
-];
+/* ─── Trend category icon/color map ─── */
+const trendMeta: Record<string, { icon: typeof ArrowUpRight; color: string }> = {
+  glycemic: { icon: ArrowUpRight, color: colors.tertiary },
+  recovery: { icon: Zap, color: colors.info },
+  general: { icon: TrendingUp, color: colors.accent },
+};
 
 export default function HealthMonitor() {
   const [_activeTab, _setActiveTab] = useState("overview");
+  const [dashboard, setDashboard] = useState<HealthDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchHealthDashboard()
+      .then((data) => {
+        setDashboard(data);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Failed to load health dashboard:", err);
+        setError("Unable to load health data. Make sure the backend is running and data is seeded.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const prescriptions: Prescription[] = dashboard?.prescriptions ?? [];
+  const healthIndicators: HealthIndicator[] = dashboard?.health_indicators ?? [];
+  const aiTrends: AITrend[] = dashboard?.ai_trends ?? [];
+  const consultations: Consultation[] = dashboard?.consultations ?? [];
+  const lastSynced = dashboard?.last_synced;
 
   return (
     <div
@@ -329,214 +335,259 @@ export default function HealthMonitor() {
               gap: 32,
             }}
           >
-            {/* AI Prescription Management Section */}
-            <section>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-                 <div style={{ padding: 10, background: `${colors.ai}10`, borderRadius: 12 }}>
-                    <ShieldCheck size={24} color={colors.ai} />
-                 </div>
-                 <div>
-                    <h3 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>AI Managed Prescriptions</h3>
-                    <p style={{ fontSize: "0.85rem", color: colors.secondary, margin: 0 }}>Active optimization for 3 medications</p>
-                 </div>
+            {/* Loading State */}
+            {loading && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0", gap: 12 }}>
+                <Loader2 size={24} color={colors.ai} style={{ animation: "spin 1s linear infinite" }} />
+                <span style={{ fontSize: "1rem", color: colors.secondary }}>Loading health data...</span>
               </div>
+            )}
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                  gap: 20,
-                }}
-              >
-                {medications.map((med) => (
+            {/* Error State */}
+            {error && !loading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px", background: `${colors.alert}10`, borderRadius: 16, border: `1px solid ${colors.alert}30` }}>
+                <AlertTriangle size={20} color={colors.alert} />
+                <span style={{ fontSize: "0.9rem", color: colors.primary }}>{error}</span>
+              </div>
+            )}
+
+            {/* Data Loaded */}
+            {!loading && !error && dashboard && (
+              <>
+                {/* AI Prescription Management Section */}
+                <section>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                     <div style={{ padding: 10, background: `${colors.ai}10`, borderRadius: 12 }}>
+                        <ShieldCheck size={24} color={colors.ai} />
+                     </div>
+                     <div>
+                        <h3 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>AI Managed Prescriptions</h3>
+                        <p style={{ fontSize: "0.85rem", color: colors.secondary, margin: 0 }}>Active optimization for {prescriptions.length} medications</p>
+                     </div>
+                  </div>
+
                   <div
-                    key={med.id}
                     style={{
-                      background: colors.surface,
-                      borderRadius: 24,
-                      padding: "24px",
-                      boxShadow: `0 4px 20px ${colors.secondary}08`,
-                      border: `1px solid ${colors.secondary}10`,
-                      display: "flex",
-                      flexDirection: "column",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
                       gap: 20,
-                      position: "relative",
-                      overflow: "hidden",
                     }}
                   >
-                    {/* Header Info */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ display: "flex", gap: 16 }}>
+                    {prescriptions.map((med) => (
+                      <div
+                        key={med.id}
+                        style={{
+                          background: colors.surface,
+                          borderRadius: 24,
+                          padding: "24px",
+                          boxShadow: `0 4px 20px ${colors.secondary}08`,
+                          border: `1px solid ${colors.secondary}10`,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 20,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {/* Header Info */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ display: "flex", gap: 16 }}>
+                            <div style={{ 
+                                width: 52, 
+                                height: 52, 
+                                borderRadius: 16, 
+                                background: colors.neutral, 
+                                display: "flex", 
+                                alignItems: "center", 
+                                justifyContent: "center" 
+                            }}>
+                              <Pill size={26} color={colors.tertiary} />
+                            </div>
+                            <div>
+                              <h4 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>{med.medication_name}</h4>
+                              <span style={{ fontSize: "0.85rem", color: colors.secondary }}>{med.dosage} • {med.frequency}</span>
+                            </div>
+                          </div>
+                          <div style={{ 
+                            background: med.status === "completed" ? "#E8F5E9" : "#FFF9C4", 
+                            padding: "4px 12px", 
+                            borderRadius: 20,
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            color: med.status === "completed" ? "#2E7D32" : "#F57F17",
+                            textTransform: "capitalize",
+                          }}>
+                            {med.status}
+                          </div>
+                        </div>
+
+                        {/* AI Insight Card */}
                         <div style={{ 
-                            width: 52, 
-                            height: 52, 
+                            background: `linear-gradient(135deg, ${colors.ai}08 0%, ${colors.ai}04 100%)`, 
                             borderRadius: 16, 
-                            background: colors.neutral, 
-                            display: "flex", 
-                            alignItems: "center", 
-                            justifyContent: "center" 
-                        }}>
-                          <Pill size={26} color={colors.tertiary} />
-                        </div>
-                        <div>
-                          <h4 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>{med.name}</h4>
-                          <span style={{ fontSize: "0.85rem", color: colors.secondary }}>{med.dosage} • {med.schedule}</span>
-                        </div>
-                      </div>
-                      <div style={{ 
-                        background: med.status === "Completed" ? "#E8F5E9" : "#FFF9C4", 
-                        padding: "4px 12px", 
-                        borderRadius: 20,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: med.status === "Completed" ? "#2E7D32" : "#F57F17"
-                      }}>
-                        {med.status}
-                      </div>
-                    </div>
-
-                    {/* AI Insight Card */}
-                    <div style={{ 
-                        background: `linear-gradient(135deg, ${colors.ai}08 0%, ${colors.ai}04 100%)`, 
-                        borderRadius: 16, 
-                        padding: "16px",
-                        border: `1px solid ${colors.ai}15`,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 10
-                    }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Sparkles size={14} color={colors.ai} />
-                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: colors.ai, textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Managed Insight</span>
-                        </div>
-                        <p style={{ fontSize: "0.9rem", color: colors.primary, fontWeight: 500, margin: 0, lineHeight: 1.4 }}>
-                            {med.aiInsight}
-                        </p>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <Zap size={12} color={colors.accent} />
-                                <span style={{ fontSize: "0.75rem", color: colors.secondary }}>Adherence: 98%</span>
-                            </div>
-                            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: colors.tertiary }}>Next: {med.nextDose}</span>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div style={{ display: "flex", gap: 10 }}>
-                        <button style={{ 
-                            flex: 1, 
-                            padding: "10px", 
-                            borderRadius: 12, 
-                            border: `1px solid ${colors.secondary}20`, 
-                            background: "none",
-                            fontSize: "0.85rem",
-                            fontWeight: 600,
-                            color: colors.secondary,
-                            cursor: "pointer"
-                        }}>Details</button>
-                        <button style={{ 
-                            flex: 1.5, 
-                            padding: "10px", 
-                            borderRadius: 12, 
-                            border: "none", 
-                            background: colors.primary,
-                            fontSize: "0.85rem",
-                            fontWeight: 600,
-                            color: colors.onPrimary,
-                            cursor: "pointer",
+                            padding: "16px",
+                            border: `1px solid ${colors.ai}15`,
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6
+                            flexDirection: "column",
+                            gap: 10
                         }}>
-                           <CheckCircle2 size={16} /> Mark Taken
-                        </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Vitals & Health Trends Section */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 32 }}>
-               
-               {/* Health Reports & Vitals Summary */}
-               <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                   <section>
-                        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 16 }}>Health Indicators</h3>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            {healthMetrics.map(metric => (
-                                <div key={metric.id} style={{ background: colors.surface, padding: "20px", borderRadius: 20, border: `1px solid ${colors.secondary}15`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                        <div style={{ padding: 10, background: `${metric.color}15`, borderRadius: 12 }}>
-                                            <metric.icon size={20} color={metric.color} />
-                                        </div>
-                                        <div>
-                                            <span style={{ fontSize: "0.8rem", color: colors.secondary, fontWeight: 500 }}>{metric.label}</span>
-                                            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                                                <h4 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>{metric.value}</h4>
-                                                <span style={{ fontSize: "0.8rem", color: colors.secondary }}>{metric.unit}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div style={{ height: 40, width: 80, background: `${metric.color}08`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <TrendingUp size={16} color={metric.color} />
-                                    </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <Sparkles size={14} color={colors.ai} />
+                                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: colors.ai, textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Managed Insight</span>
+                            </div>
+                            <p style={{ fontSize: "0.9rem", color: colors.primary, fontWeight: 500, margin: 0, lineHeight: 1.4 }}>
+                                {med.ai_insight || "No AI insight available."}
+                            </p>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                    <Zap size={12} color={colors.accent} />
+                                    <span style={{ fontSize: "0.75rem", color: colors.secondary }}>Adherence: {med.adherence_pct}%</span>
                                 </div>
-                            ))}
+                                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: colors.tertiary }}>
+                                  {med.next_dose_time || "No schedule"}
+                                </span>
+                            </div>
                         </div>
-                   </section>
 
+                        {/* Action Buttons */}
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button style={{ 
+                                flex: 1, 
+                                padding: "10px", 
+                                borderRadius: 12, 
+                                border: `1px solid ${colors.secondary}20`, 
+                                background: "none",
+                                fontSize: "0.85rem",
+                                fontWeight: 600,
+                                color: colors.secondary,
+                                cursor: "pointer"
+                            }}>Details</button>
+                            <button style={{ 
+                                flex: 1.5, 
+                                padding: "10px", 
+                                borderRadius: 12, 
+                                border: "none", 
+                                background: colors.primary,
+                                fontSize: "0.85rem",
+                                fontWeight: 600,
+                                color: colors.onPrimary,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 6
+                            }}>
+                               <CheckCircle2 size={16} /> Mark Taken
+                            </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Vitals & Health Trends Section */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 32 }}>
+                   
+                   {/* Health Reports & Vitals Summary */}
+                   <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                       <section>
+                            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 16 }}>Health Indicators</h3>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                {healthIndicators.map(indicator => {
+                                    const meta = indicatorMeta[indicator.indicator_name] ?? { icon: TrendingUp, color: colors.info };
+                                    const IndicatorIcon = meta.icon;
+                                    return (
+                                      <div key={indicator.id} style={{ background: colors.surface, padding: "20px", borderRadius: 20, border: `1px solid ${colors.secondary}15`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                              <div style={{ padding: 10, background: `${meta.color}15`, borderRadius: 12 }}>
+                                                  <IndicatorIcon size={20} color={meta.color} />
+                                              </div>
+                                              <div>
+                                                  <span style={{ fontSize: "0.8rem", color: colors.secondary, fontWeight: 500 }}>{indicator.indicator_name}</span>
+                                                  <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                                                      <h4 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>{indicator.value}</h4>
+                                                      <span style={{ fontSize: "0.8rem", color: colors.secondary }}>{indicator.unit}</span>
+                                                  </div>
+                                              </div>
+                                          </div>
+                                          <div style={{ height: 40, width: 80, background: `${meta.color}08`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                              <TrendingUp size={16} color={meta.color} />
+                                          </div>
+                                      </div>
+                                    );
+                                })}
+                                {healthIndicators.length === 0 && (
+                                  <p style={{ fontSize: "0.85rem", color: colors.secondary }}>No health indicators recorded yet.</p>
+                                )}
+                            </div>
+                       </section>
+
+                       <section>
+                          <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 16 }}>Upcoming Consultations</h3>
+                          {consultations.length > 0 ? (
+                            consultations.map((consult) => {
+                              const scheduledDate = new Date(consult.scheduled_at);
+                              const timeStr = scheduledDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+                              return (
+                                <div key={consult.id} style={{ background: `linear-gradient(to right, ${colors.primary}, #2A5A46)`, padding: "20px", borderRadius: 20, color: colors.onPrimary, marginBottom: 12 }}>
+                                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                                      <span style={{ fontSize: "0.8rem", opacity: 0.8 }}>Specialist Visit</span>
+                                      <span style={{ fontSize: "0.8rem", fontWeight: 600, background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: 4 }}>{consult.label}</span>
+                                   </div>
+                                   <h4 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 4px 0" }}>{consult.doctor_name}</h4>
+                                   <p style={{ fontSize: "0.85rem", opacity: 0.9, margin: 0 }}>{consult.specialty} • {timeStr}</p>
+                                   {consult.join_url && (
+                                     <a href={consult.join_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", width: "100%", marginTop: 16, padding: "10px", borderRadius: 10, border: "none", background: colors.onPrimary, color: colors.primary, fontWeight: 600, fontSize: "0.85rem", cursor: "pointer", textAlign: "center", textDecoration: "none" }}>Join Call</a>
+                                   )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p style={{ fontSize: "0.85rem", color: colors.secondary }}>No upcoming consultations.</p>
+                          )}
+                       </section>
+                   </div>
+
+                   {/* AI Health Trends Analysis */}
                    <section>
-                      <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 16 }}>Upcoming Consultations</h3>
-                      <div style={{ background: `linear-gradient(to right, ${colors.primary}, #2A5A46)`, padding: "20px", borderRadius: 20, color: colors.onPrimary }}>
-                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                            <span style={{ fontSize: "0.8rem", opacity: 0.8 }}>Specialist Visit</span>
-                            <span style={{ fontSize: "0.8rem", fontWeight: 600, background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: 4 }}>Tomorrow</span>
-                         </div>
-                         <h4 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 4px 0" }}>Dr. Emily Watson</h4>
-                         <p style={{ fontSize: "0.85rem", opacity: 0.9, margin: 0 }}>Endocrinology • 10:30 AM</p>
-                         <button style={{ width: "100%", marginTop: 16, padding: "10px", borderRadius: 10, border: "none", background: colors.onPrimary, color: colors.primary, fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}>Join Call</button>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0 }}>AI Trend Analysis</h3>
+                        <span style={{ fontSize: "0.85rem", color: colors.ai, fontWeight: 600 }}>
+                          {lastSynced ? `Last Sync: ${new Date(lastSynced).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "Not synced"}
+                        </span>
+                      </div>
+                      <div style={{ background: colors.surface, borderRadius: 24, padding: "32px", border: `1px solid ${colors.secondary}15`, minHeight: 300, display: "flex", flexDirection: "column", gap: 24 }}>
+                         {aiTrends.length === 0 ? (
+                           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                             <div style={{ textAlign: "center" }}>
+                                <BrainCircuit size={48} color={colors.ai} style={{ marginBottom: 16, opacity: 0.5 }} />
+                                <p style={{ color: colors.secondary, fontSize: "0.9rem" }}>AI is generating long-term health projections based on your medication adherence and vitals...</p>
+                             </div>
+                           </div>
+                         ) : (
+                           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                              {aiTrends.map((trend) => {
+                                const meta = trendMeta[trend.category] ?? trendMeta.general;
+                                const TrendIcon = meta.icon;
+                                return (
+                                  <div key={trend.id} style={{ display: "flex", gap: 16 }}>
+                                      <div style={{ width: 40, height: 40, borderRadius: 10, background: `${meta.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                          <TrendIcon size={20} color={meta.color} />
+                                      </div>
+                                      <div>
+                                          <h5 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 2px 0" }}>{trend.trend_title}</h5>
+                                          <p style={{ fontSize: "0.85rem", color: colors.secondary, margin: 0 }}>{trend.trend_summary}</p>
+                                      </div>
+                                  </div>
+                                );
+                              })}
+                           </div>
+                         )}
                       </div>
                    </section>
-               </div>
-
-               {/* AI Health Trends Analysis */}
-               <section>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0 }}>AI Trend Analysis</h3>
-                    <span style={{ fontSize: "0.85rem", color: colors.ai, fontWeight: 600 }}>Last Sync: 2 mins ago</span>
-                  </div>
-                  <div style={{ background: colors.surface, borderRadius: 24, padding: "32px", border: `1px solid ${colors.secondary}15`, minHeight: 300, display: "flex", flexDirection: "column", gap: 24 }}>
-                     <div style={{ flex: 1, borderBottom: `1px solid ${colors.secondary}10`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                         <div style={{ textAlign: "center" }}>
-                            <BrainCircuit size={48} color={colors.ai} style={{ marginBottom: 16, opacity: 0.5 }} />
-                            <p style={{ color: colors.secondary, fontSize: "0.9rem" }}>AI is generating long-term health projections based on your medication adherence and vitals...</p>
-                         </div>
-                     </div>
-                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ display: "flex", gap: 16 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${colors.tertiary}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <ArrowUpRight size={20} color={colors.tertiary} />
-                            </div>
-                            <div>
-                                <h5 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 2px 0" }}>Glycemic Stability</h5>
-                                <p style={{ fontSize: "0.85rem", color: colors.secondary, margin: 0 }}>Your glucose levels have stabilized by 12% since the AI-optimized Metformin schedule started.</p>
-                            </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 16 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${colors.info}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <Zap size={20} color={colors.info} />
-                            </div>
-                            <div>
-                                <h5 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 2px 0" }}>Recovery Efficiency</h5>
-                                <p style={{ fontSize: "0.85rem", color: colors.secondary, margin: 0 }}>Sleep quality correlation suggests that Vitamin D3 intake in the morning is improving REM cycles.</p>
-                            </div>
-                        </div>
-                     </div>
-                  </div>
-               </section>
-            </div>
+                </div>
+              </>
+            )}
 
           </div>
         </ScrollArea>

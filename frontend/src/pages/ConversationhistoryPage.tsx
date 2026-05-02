@@ -1,11 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Leaf, BrainCircuit, Activity, Heart, Footprints,
-  Bot, Clock, Search, Trash2, ChevronRight,
+  Bot, Clock, Search,
   MessageSquare, Calendar, ArrowLeft, Sparkles,
+  Loader2, AlertTriangle,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  fetchConversations,
+  fetchConversationDetail,
+  MOCK_PATIENT_ID,
+  type ConversationPreview,
+  type ConversationMessage,
+  type ConversationDetail,
+} from "@/lib/api";
 
 const colors = {
   primary: "#1B3A2E",
@@ -25,95 +34,6 @@ const navItems = [
   { label: "Vital Logs", icon: Footprints, href: "/vital-logs" },
 ];
 
-interface ConversationPreview {
-  id: string;
-  title: string;
-  lastMessage: string;
-  date: string;
-  time: string;
-  messageCount: number;
-  tags: string[];
-}
-
-interface Message {
-  id: string;
-  role: "ai" | "user";
-  content: string;
-  time: string;
-}
-
-const conversations: ConversationPreview[] = [
-  {
-    id: "c1",
-    title: "Afternoon Headache Consultation",
-    lastMessage: "I recommend drinking a glass of water and resting for 15 minutes in a quiet environment.",
-    date: "Today",
-    time: "2:30 PM",
-    messageCount: 4,
-    tags: ["Symptoms", "Medication"],
-  },
-  {
-    id: "c2",
-    title: "Sleep Quality Analysis",
-    lastMessage: "Your REM sleep has improved by 18% since adjusting your evening routine. Keep maintaining the 10:30 PM bedtime.",
-    date: "Yesterday",
-    time: "9:15 PM",
-    messageCount: 6,
-    tags: ["Sleep", "Wellness"],
-  },
-  {
-    id: "c3",
-    title: "Nutrition & Hydration Review",
-    lastMessage: "Based on your logs, increasing your afternoon water intake by 2 glasses could help reduce fatigue symptoms.",
-    date: "Apr 30",
-    time: "4:45 PM",
-    messageCount: 8,
-    tags: ["Nutrition", "Hydration"],
-  },
-  {
-    id: "c4",
-    title: "Blood Pressure Follow-up",
-    lastMessage: "Your blood pressure readings over the past week show excellent stability. Continue your current regimen.",
-    date: "Apr 28",
-    time: "10:00 AM",
-    messageCount: 5,
-    tags: ["Vitals", "BP"],
-  },
-  {
-    id: "c5",
-    title: "Exercise Plan Discussion",
-    lastMessage: "A combination of 30-minute walks and light yoga would be ideal given your current health profile.",
-    date: "Apr 26",
-    time: "11:30 AM",
-    messageCount: 7,
-    tags: ["Exercise", "Wellness"],
-  },
-];
-
-const conversationMessages: Record<string, Message[]> = {
-  c1: [
-    { id: "1", role: "ai", time: "2:30 PM", content: "Good afternoon. I am your Clinical Wellness Guide. How are you feeling today?" },
-    { id: "2", role: "user", time: "2:31 PM", content: "I've been experiencing mild headaches in the late afternoon for the past two days. Could it be related to my new medication schedule?" },
-    { id: "3", role: "ai", time: "2:31 PM", content: "Thank you for sharing that observation. Mild afternoon headaches can sometimes occur as your body adjusts to a new medication schedule." },
-    { id: "4", role: "ai", time: "2:32 PM", content: "Let's review your recent logs. I note your hydration levels were slightly below target yesterday. Before we consider the medication as the primary cause, I recommend drinking a glass of water and resting for 15 minutes in a quiet environment." },
-  ],
-  c2: [
-    { id: "1", role: "ai", time: "9:15 PM", content: "Good evening. I've analyzed your sleep data from the past week. Would you like to review the insights?" },
-    { id: "2", role: "user", time: "9:16 PM", content: "Yes please. I've been trying to improve my sleep schedule." },
-    { id: "3", role: "ai", time: "9:16 PM", content: "Great effort! Your average sleep duration increased from 6.2 to 7.5 hours. Deep sleep phases are also longer." },
-    { id: "4", role: "user", time: "9:17 PM", content: "That's encouraging! What about REM sleep?" },
-    { id: "5", role: "ai", time: "9:17 PM", content: "Your REM sleep has improved by 18% since adjusting your evening routine. Keep maintaining the 10:30 PM bedtime." },
-    { id: "6", role: "user", time: "9:18 PM", content: "Will do, thanks for the analysis!" },
-  ],
-  c3: [
-    { id: "1", role: "ai", time: "4:45 PM", content: "I've reviewed your nutrition and hydration logs for this week. There are some patterns I'd like to discuss." },
-    { id: "2", role: "user", time: "4:46 PM", content: "Sure, what did you find?" },
-    { id: "3", role: "ai", time: "4:46 PM", content: "Your calorie intake is well-balanced, averaging 1,850 kcal daily. However, your water intake drops significantly after 3 PM." },
-    { id: "4", role: "user", time: "4:47 PM", content: "I do tend to forget to drink water in the afternoon." },
-    { id: "5", role: "ai", time: "4:47 PM", content: "Based on your logs, increasing your afternoon water intake by 2 glasses could help reduce fatigue symptoms." },
-  ],
-};
-
 const tagColors: Record<string, string> = {
   Symptoms: "#E28E93",
   Medication: "#8EADE2",
@@ -127,17 +47,63 @@ const tagColors: Record<string, string> = {
 };
 
 export default function ConversationhistoryPage() {
+  const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
+  const [activeDetail, setActiveDetail] = useState<ConversationDetail | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredConversations = conversations.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Load conversations list
+  const loadConversations = useCallback(async (search?: string) => {
+    try {
+      setLoading(true);
+      const data = await fetchConversations(undefined, search);
+      setConversations(data.conversations ?? []);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to load conversations:", err);
+      setError("Unable to load conversations. Make sure the backend is running and data is seeded.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const activeMessages = selectedConvo ? conversationMessages[selectedConvo] : null;
-  const activeConvo = conversations.find((c) => c.id === selectedConvo);
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadConversations(searchQuery || undefined);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, loadConversations]);
+
+  // Load conversation detail when selected
+  const handleSelectConvo = async (convoId: string) => {
+    setSelectedConvo(convoId);
+    setDetailLoading(true);
+    try {
+      const detail = await fetchConversationDetail(MOCK_PATIENT_ID, convoId);
+      setActiveDetail(detail);
+    } catch (err) {
+      console.error("Failed to load conversation detail:", err);
+      // Fallback: show preview info without messages
+      const preview = conversations.find(c => c.id === convoId);
+      if (preview) {
+        setActiveDetail({ ...preview, messages: [] });
+      }
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const filteredConversations = conversations;
+  const activeConvo = activeDetail;
+  const activeMessages: ConversationMessage[] = activeDetail?.messages ?? [];
 
   return (
     <div id="conversation-history-page" style={{ display: "flex", height: "100vh", width: "100%", fontFamily: "'DM Sans', sans-serif", background: colors.neutral, color: colors.primary }}>
@@ -207,10 +173,25 @@ export default function ConversationhistoryPage() {
 
             <ScrollArea className="flex-1">
               <div style={{ padding: "0 12px 20px", display: "flex", flexDirection: "column", gap: 4 }}>
-                {filteredConversations.map((convo) => (
+                {loading && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 10 }}>
+                    <Loader2 size={20} color={colors.ai} style={{ animation: "spin 1s linear infinite" }} />
+                    <span style={{ fontSize: "0.9rem", color: colors.secondary }}>Loading conversations...</span>
+                  </div>
+                )}
+                {error && !loading && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px", background: `#E28E9310`, borderRadius: 12, border: `1px solid #E28E9330` }}>
+                    <AlertTriangle size={16} color="#E28E93" />
+                    <span style={{ fontSize: "0.85rem", color: colors.primary }}>{error}</span>
+                  </div>
+                )}
+                {detailLoading && selectedConvo && (
+                  <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 3, background: colors.ai, zIndex: 999, animation: "pulse 1s infinite" }} />
+                )}
+                {!loading && !error && filteredConversations.map((convo) => (
                   <div
                     key={convo.id}
-                    onClick={() => setSelectedConvo(convo.id)}
+                    onClick={() => handleSelectConvo(convo.id)}
                     style={{
                       padding: "16px",
                       borderRadius: 16,
@@ -226,11 +207,11 @@ export default function ConversationhistoryPage() {
                       <h4 style={{ fontSize: "0.9rem", fontWeight: 600, margin: 0, lineHeight: 1.3, flex: 1, marginRight: 12 }}>{convo.title}</h4>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                         <Clock size={12} color={colors.secondary} />
-                        <span style={{ fontSize: "0.7rem", color: colors.secondary, whiteSpace: "nowrap" }}>{convo.date}</span>
+                        <span style={{ fontSize: "0.7rem", color: colors.secondary, whiteSpace: "nowrap" }}>{convo.last_message_at ? new Date(convo.last_message_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}</span>
                       </div>
                     </div>
                     <p style={{ fontSize: "0.8rem", color: colors.secondary, margin: "0 0 10px 0", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {convo.lastMessage}
+                      {convo.summary ?? ""}
                     </p>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -242,7 +223,7 @@ export default function ConversationhistoryPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <MessageSquare size={11} color={colors.secondary} />
-                        <span style={{ fontSize: "0.7rem", color: colors.secondary }}>{convo.messageCount}</span>
+                        <span style={{ fontSize: "0.7rem", color: colors.secondary }}>{convo.message_count}</span>
                       </div>
                     </div>
                   </div>
@@ -271,9 +252,9 @@ export default function ConversationhistoryPage() {
                     <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: 0 }}>{activeConvo.title}</h3>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                       <Calendar size={12} color={colors.secondary} />
-                      <span style={{ fontSize: "0.75rem", color: colors.secondary }}>{activeConvo.date} at {activeConvo.time}</span>
+                      <span style={{ fontSize: "0.75rem", color: colors.secondary }}>{activeConvo.last_message_at ? new Date(activeConvo.last_message_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}</span>
                       <span style={{ fontSize: "0.75rem", color: colors.secondary }}>•</span>
-                      <span style={{ fontSize: "0.75rem", color: colors.secondary }}>{activeConvo.messageCount} messages</span>
+                      <span style={{ fontSize: "0.75rem", color: colors.secondary }}>{activeConvo.message_count} messages</span>
                     </div>
                   </div>
                 </div>
@@ -308,7 +289,7 @@ export default function ConversationhistoryPage() {
                           {msg.content}
                         </div>
                         <span style={{ fontSize: "0.65rem", color: colors.secondary, marginTop: 4, display: "block", textAlign: msg.role === "user" ? "right" : "left", paddingLeft: msg.role === "ai" ? 4 : 0, paddingRight: msg.role === "user" ? 4 : 0 }}>
-                          {msg.time}
+                          {msg.created_at ? new Date(msg.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : ""}
                         </span>
                       </div>
                       {msg.role === "user" && (
@@ -326,8 +307,7 @@ export default function ConversationhistoryPage() {
                       <span style={{ fontSize: "0.75rem", fontWeight: 700, color: colors.ai, textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Session Summary</span>
                     </div>
                     <p style={{ fontSize: "0.85rem", color: colors.primary, margin: 0, lineHeight: 1.6 }}>
-                      This consultation covered {activeConvo.tags.join(" and ").toLowerCase()} topics.
-                      {activeConvo.messageCount} messages were exchanged. Key recommendations were provided and follow-up actions were suggested.
+                      {activeConvo.summary || `This consultation covered ${activeConvo.tags.join(" and ").toLowerCase()} topics. ${activeConvo.message_count} messages were exchanged.`}
                     </p>
                   </div>
                 </div>
